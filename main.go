@@ -1,8 +1,9 @@
 package main
 
 import (
-	"errors"
+	"flag"
 	"log"
+	"unicode"
 
 	"github.com/amirkhaki/crossword/config"
 	"github.com/amirkhaki/crossword/key"
@@ -19,22 +20,11 @@ const (
 	colorGreen     = lipgloss.Color("#538d4e")
 )
 
-func toUpper(r rune) (rune, error)  {
-	if r >= 'A' && r <= 'Z' {
-		return r, nil
-	}
-
-	if r >= 'a' && r <= 'z' {
-		return r - 'a' + 'A', nil
-	}
-
-	return r, errors.New("the rune is not an alphabet")
-
-}
-
 type game struct {
-	actual key.Table
-	mustBe key.Table
+	rows     int
+	cols     int
+	actual   [][]key.Key
+	mustBe   [][]key.Key
 	crrntRow int
 	crrntCol int
 }
@@ -44,19 +34,19 @@ func (g *game) Init() tea.Cmd {
 }
 
 func (g *game) View() string {
-	var rows [key.COLS]string
-	for i := 0; i < key.ROWS; i++ {
-		var cols [key.COLS]string
-		for j := 0; j < key.COLS; j++ {
+	var rows []string = make([]string, g.rows)
+	for i := 0; i < g.rows; i++ {
+		var cols []string = make([]string, g.cols)
+		for j := 0; j < g.cols; j++ {
 			if i == g.crrntRow && j == g.crrntCol {
 				cols[j] = g.actual[i][j].Render(colorPrimary)
 			} else {
 				cols[j] = g.actual[i][j].Render(colorSecondary)
 			}
 		}
-		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols[:]...)
+		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
 	}
-	return lipgloss.JoinVertical(lipgloss.Center, rows[:]...)
+	return lipgloss.JoinVertical(lipgloss.Center, rows...)
 }
 
 func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -83,10 +73,10 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (g *game) goDown() tea.Cmd {
-	if g.crrntRow + 1 == key.ROWS {
+	if g.crrntRow+1 == g.rows {
 		return nil
 	}
-	if g.actual[g.crrntRow+1][g.crrntCol] == key.LOCKED {
+	if g.actual[g.crrntRow+1][g.crrntCol].State == key.READONLY {
 		return nil
 	}
 	g.crrntRow++
@@ -98,7 +88,7 @@ func (g *game) goUp() tea.Cmd {
 	if g.crrntRow == 0 {
 		return nil
 	}
-	if g.actual[g.crrntRow-1][g.crrntCol] == key.LOCKED {
+	if g.actual[g.crrntRow-1][g.crrntCol].State == key.READONLY {
 		return nil
 	}
 	g.crrntRow--
@@ -110,7 +100,7 @@ func (g *game) goLeft() tea.Cmd {
 	if g.crrntCol == 0 {
 		return nil
 	}
-	if g.actual[g.crrntRow][g.crrntCol-1] == key.LOCKED {
+	if g.actual[g.crrntRow][g.crrntCol-1].State == key.READONLY {
 		return nil
 	}
 	g.crrntCol--
@@ -119,10 +109,10 @@ func (g *game) goLeft() tea.Cmd {
 }
 
 func (g *game) goRight() tea.Cmd {
-	if g.crrntCol + 1 == key.COLS {
+	if g.crrntCol+1 == g.cols {
 		return nil
 	}
-	if g.actual[g.crrntRow][g.crrntCol+1] == key.LOCKED {
+	if g.actual[g.crrntRow][g.crrntCol+1].State == key.READONLY {
 		return nil
 	}
 	g.crrntCol++
@@ -131,42 +121,62 @@ func (g *game) goRight() tea.Cmd {
 }
 
 func (g *game) insertKey(r rune) tea.Cmd {
-	r, err := toUpper(r)
-	if err != nil {
+	if !unicode.IsLetter(r) || g.actual[g.crrntRow][g.crrntCol].State == key.READONLY {
 		return nil
 	}
+	r = unicode.ToUpper(r)
 	k := key.Letters[r]
-	g.actual[g.crrntRow][g.crrntCol] = k
-	return nil	
+	g.actual[g.crrntRow][g.crrntCol].Char = k
+	if g.Ended() {
+		return tea.Quit
+	}
+	return nil
 }
 
 func (g *game) Ended() bool {
-	for i:=0; i < key.COLS; i++ {
-		for j := 0; j < key.ROWS; j++ {
-			if g.actual[i][j] != g.mustBe[i][j] {
+	for i := 0; i < g.rows; i++ {
+		for j := 0; j < g.cols; j++ {
+			if !g.mustBe[i][j].IsEqual(g.actual[i][j]) {
 				return false
 			}
 		}
 	}
-	return true	
+	return true
 }
-// TODO read initial position from config (crrntRow, crrntCol) which must not be a locked key
-// TODO reas mustBe and actual from config 
-func NewGame(cfg config.Config) ( *game, error ) {
+
+func NewGame(cfg config.Config) (*game, error) {
 	g := game{}
-	for i:=0; i < key.COLS; i++ {
-		for j := 0; j < key.ROWS; j++ {
-			g.actual[i][j] = key.EMPTY
-		}
+	g.rows = cfg.Rows
+	g.cols = cfg.Cols
+	g.actual = make([][]key.Key, cfg.Rows)
+	for i := 0; i < cfg.Rows; i++ {
+		g.actual[i] = make([]key.Key, cfg.Cols)
 	}
-	g.actual[1][1] = key.LOCKED
-	g.actual[5][10] = key.LOCKED
-	g.actual[12][12] = key.Z
+	g.mustBe = make([][]key.Key, cfg.Rows)
+	for i := 0; i < cfg.Rows; i++ {
+		g.mustBe[i] = make([]key.Key, cfg.Cols)
+	}
+	for _, v := range cfg.Actual.Keys {
+		g.actual[v.Row][v.Col] = v.Key
+	}
+	for _, v := range cfg.Mustbe.Keys {
+		g.mustBe[v.Row][v.Col] = v.Key
+	}
+	g.crrntCol = cfg.InitialCol
+	g.crrntRow = cfg.InitialRow
 	return &g, nil
 }
 
+// TODO show time of other users realtime
+// TODO cause everybody can register multiple times with different names and cheat \
+// it would be nice if 1. start game at fixed time or 2. have multiple with same level of difficulity
+// or limit registration, so only verified users will be able to play
+
 func main() {
-	cfg, err := config.New()
+	flag.String("config", "config.json", "path to config file, format must be json")
+	flag.Parse()
+	c := flag.Lookup("config").Value.String()
+	cfg, err := config.New(c)
 	if err != nil {
 		log.Fatal(err)
 	}

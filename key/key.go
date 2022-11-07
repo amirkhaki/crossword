@@ -1,29 +1,26 @@
 package key
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"errors"
+	"strings"
+	"unicode"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 type key rune
 
-func (k key) Render(color lipgloss.Color) string {
-	if k == LOCKED{
-		return lipgloss.NewStyle().
-			Padding(0, 1).
-			Border(lipgloss.HiddenBorder()).
-			BorderForeground(lipgloss.NoColor{}).
-			Foreground(lipgloss.NoColor{}).
-			Render(string(' '))
-
+func (k *key) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return errors.New("len of key is 0")
 	}
-	return lipgloss.NewStyle().
-		Padding(0, 1).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(color).
-		Foreground(color).
-		Render(string(k))
+	var ok bool
+	(*k), ok = Letters[unicode.ToUpper(rune(text[0]))]
+	if !ok {
+		return errors.New("invalid character " + string(text[0]))
+	}
+	return nil
 }
-
-// TODO add support for locked letters, so table can have an initial info which users can't change it
-
 
 const (
 	A key = iota + 'A'
@@ -52,18 +49,57 @@ const (
 	X
 	Y
 	Z
-	LOCKED
 	EMPTY = ' '
 )
 
+type state int
+
+func (s *state) UnmarshalText(text []byte) error {
+	str := string(text)
+	if strings.ToLower(str) == "readonly" {
+		*s = READONLY
+	} else if strings.ToLower(str) == "editable" {
+		*s = EDITABLE
+	} else {
+		return errors.New("state must be editable or readonly, got " + str)
+	}
+	return nil
+}
 
 const (
-	ROWS = 13
-	COLS = 13
+	EDITABLE state = iota
+	READONLY
 )
 
-type Table [ROWS][COLS]key
+type Key struct {
+	Char  key   `json:"char"`
+	State state `json:"state"`
+}
 
+func (k Key) Render(color lipgloss.Color) string {
+	if k.State == READONLY {
+		return lipgloss.NewStyle().
+			Padding(0, 1).
+			Border(lipgloss.HiddenBorder()).
+			BorderForeground(lipgloss.NoColor{}).
+			Foreground(lipgloss.NoColor{}).
+			Render(string(k.Char))
+
+	}
+	return lipgloss.NewStyle().
+		Padding(0, 1).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(color).
+		Foreground(color).
+		Render(string(k.Char))
+}
+
+func (k Key) IsEqual(j Key) bool {
+	if k.Char == j.Char && k.State == j.State {
+		return true
+	}
+	return false
+}
 
 var Letters = make(map[rune]key)
 
@@ -94,4 +130,5 @@ func init() {
 	Letters['X'] = X
 	Letters['Y'] = Y
 	Letters['Z'] = Z
+	Letters[' '] = EMPTY
 }

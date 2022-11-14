@@ -27,6 +27,7 @@ type Config struct {
 			Key key.Key `json:"key"`
 		} `json:"keys"`
 	} `json:"mustbe"`
+	Questions []string `json:"questions"`
 }
 
 func New(path string) (cfg Config, err error) {

@@ -19,12 +19,15 @@ const (
 )
 
 type game struct {
-	rows     int
-	cols     int
-	actual   [][]key.Key
-	mustBe   [][]key.Key
-	crrntRow int
-	crrntCol int
+	width     int
+	height    int
+	rows      int
+	cols      int
+	actual    [][]key.Key
+	mustBe    [][]key.Key
+	crrntRow  int
+	crrntCol  int
+	questions []string
 }
 
 func (g *game) Init() tea.Cmd {
@@ -44,7 +47,16 @@ func (g *game) View() string {
 		}
 		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
 	}
-	return lipgloss.JoinVertical(lipgloss.Center, rows...)
+	table := lipgloss.JoinVertical(lipgloss.Center, rows...)
+	questions := lipgloss.JoinVertical(lipgloss.Left, g.questions...)
+	questions = lipgloss.NewStyle().
+		Padding(0, 1).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("#f93005")).
+		Foreground(lipgloss.Color("#09f905")).
+		Render(questions)
+	board := lipgloss.JoinHorizontal(lipgloss.Center, table, questions)
+	return lipgloss.Place(g.width, g.height, lipgloss.Center, lipgloss.Center, board)
 }
 
 func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -66,6 +78,8 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return g, g.insertKey(msg.Runes[0])
 			}
 		}
+	case tea.WindowSizeMsg:
+		return g, g.doResize(msg)
 	}
 	return g, nil
 }
@@ -130,7 +144,11 @@ func (g *game) insertKey(r rune) tea.Cmd {
 	}
 	return nil
 }
-
+func (g *game) doResize(msg tea.WindowSizeMsg) tea.Cmd {
+	g.height = msg.Height
+	g.width = msg.Width
+	return nil
+}
 func (g *game) Ended() bool {
 	for i := 0; i < g.rows; i++ {
 		for j := 0; j < g.cols; j++ {
@@ -162,6 +180,7 @@ func NewGame(cfg config.Config) (*game, error) {
 	}
 	g.crrntCol = cfg.InitialCol
 	g.crrntRow = cfg.InitialRow
+	g.questions = cfg.Questions
 	return &g, nil
 }
 

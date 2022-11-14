@@ -47,6 +47,11 @@ func init() {
 	serverPort = flag.Int("port", 2222, "port for server")
 }
 
+// having a map of [user][]program
+// any interaction in a game will be sent to all of programs(p.Send)
+// so state of game should not be saved in the model cause it is user specific
+// thinking about having a map[user]struct {[]program, state}
+
 func main() {
 	flag.Parse()
 	cfg, err := config.New(*configPath)

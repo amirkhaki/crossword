@@ -51,17 +51,29 @@ const (
 	Z
 	EMPTY = ' '
 )
+const (
+	ZERO key = iota + '0'
+	ONE
+	TWO
+	THREE
+	FOUR
+	FIVE
+	SIX
+	SEVEN
+	EIGHT
+	NINE
+)
 
 type state int
 
 func (s *state) UnmarshalText(text []byte) error {
 	str := string(text)
-	if strings.ToLower(str) == "readonly" {
+	if strings.ToLower(str) == "r" {
 		*s = READONLY
-	} else if strings.ToLower(str) == "editable" {
+	} else if strings.ToLower(str) == "e" {
 		*s = EDITABLE
 	} else {
-		return errors.New("state must be editable or readonly, got " + str)
+		return errors.New("state must be editable (e) or readonly (r), got " + str)
 	}
 	return nil
 }
@@ -131,4 +143,14 @@ func init() {
 	Letters['Y'] = Y
 	Letters['Z'] = Z
 	Letters[' '] = EMPTY
+	Letters['0'] = ZERO
+	Letters['1'] = ONE
+	Letters['2'] = TWO
+	Letters['3'] = THREE
+	Letters['4'] = FOUR
+	Letters['5'] = FIVE
+	Letters['6'] = SIX
+	Letters['7'] = SEVEN
+	Letters['8'] = EIGHT
+	Letters['9'] = NINE
 }

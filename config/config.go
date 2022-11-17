@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/amirkhaki/crossword/key"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Config struct {
@@ -27,7 +28,11 @@ type Config struct {
 			Key key.Key `json:"key"`
 		} `json:"keys"`
 	} `json:"mustbe"`
-	Questions []string `json:"questions"`
+	Questions             []string       `json:"questions"`
+	QuestionBorderColor   lipgloss.Color `json:"question_border_color"`
+	QuestionTextColor     lipgloss.Color `json:"question_text_color"`
+	TableEditableKeyColor lipgloss.Color `json:"table_editable_key_color"`
+	TableSelectedKeyColor lipgloss.Color `json:"table_selected_key_color"`
 }
 
 func New(path string) (cfg Config, err error) {

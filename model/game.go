@@ -19,15 +19,19 @@ const (
 )
 
 type game struct {
-	width     int
-	height    int
-	rows      int
-	cols      int
-	actual    [][]key.Key
-	mustBe    [][]key.Key
-	crrntRow  int
-	crrntCol  int
-	questions []string
+	width               int
+	height              int
+	rows                int
+	cols                int
+	actual              [][]key.Key
+	mustBe              [][]key.Key
+	crrntRow            int
+	crrntCol            int
+	questions           []string
+	questionBorderColor lipgloss.Color
+	questionTextColor   lipgloss.Color
+	keyColor            lipgloss.Color
+	currentKeyColor     lipgloss.Color
 }
 
 func (g *game) Init() tea.Cmd {
@@ -40,9 +44,9 @@ func (g *game) View() string {
 		var cols []string = make([]string, g.cols)
 		for j := 0; j < g.cols; j++ {
 			if i == g.crrntRow && j == g.crrntCol {
-				cols[j] = g.actual[i][j].Render(colorPrimary)
+				cols[j] = g.actual[i][j].Render(g.currentKeyColor)
 			} else {
-				cols[j] = g.actual[i][j].Render(colorSecondary)
+				cols[j] = g.actual[i][j].Render(g.keyColor)
 			}
 		}
 		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
@@ -52,8 +56,8 @@ func (g *game) View() string {
 	questions = lipgloss.NewStyle().
 		Padding(0, 1).
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#f93005")).
-		Foreground(lipgloss.Color("#09f905")).
+		BorderForeground(g.questionTextColor).
+		Foreground(g.questionBorderColor).
 		Render(questions)
 	board := lipgloss.JoinHorizontal(lipgloss.Center, table, questions)
 	return lipgloss.Place(g.width, g.height, lipgloss.Center, lipgloss.Center, board)
@@ -181,6 +185,10 @@ func NewGame(cfg config.Config) (*game, error) {
 	g.crrntCol = cfg.InitialCol
 	g.crrntRow = cfg.InitialRow
 	g.questions = cfg.Questions
+	g.questionBorderColor = cfg.QuestionBorderColor
+	g.questionTextColor = cfg.QuestionTextColor
+	g.currentKeyColor = cfg.TableSelectedKeyColor
+	g.keyColor = cfg.TableEditableKeyColor
 	return &g, nil
 }
 

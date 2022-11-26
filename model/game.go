@@ -18,23 +18,25 @@ const (
 	colorYellow    = lipgloss.Color("#b59f3b")
 	colorGreen     = lipgloss.Color("#538d4e")
 )
+
 type endGameMsg struct{}
+
 var games []*game
 var currentGame int
+
 type endScreen struct {
-  
 }
 
 func (_ endScreen) Init() tea.Cmd {
-  return nil
+	return nil
 }
 
 func (e endScreen) Update(tea.Msg) (tea.Model, tea.Cmd) {
-  return e, tea.Quit
+	return e, tea.Quit
 }
 
 func (_ endScreen) View() string {
-  return "game ended, do something to quit"
+	return "game ended, do something to quit"
 }
 
 type betweenGame struct {
@@ -48,17 +50,17 @@ func (bg betweenGame) Init() tea.Cmd {
 func (bg betweenGame) Update(tea.Msg) (tea.Model, tea.Cmd) {
 	bg.updateCounter++
 	if bg.updateCounter > 1 {
-    if currentGame >= len(games)-1 {
-      return endScreen{}, nil
-    }
+		if currentGame >= len(games)-1 {
+			return endScreen{}, nil
+		}
 		currentGame++
 		return games[currentGame], nil
 	}
-  return bg, nil
+	return bg, nil
 }
 
 func (bg betweenGame) View() string {
-  g := games[currentGame]
+	g := games[currentGame]
 	var rows []string = make([]string, g.rows)
 	for i := 0; i < g.rows; i++ {
 		var cols []string = make([]string, g.cols)
@@ -81,7 +83,7 @@ func (bg betweenGame) View() string {
 		Render(notificatoins)
 	board := lipgloss.JoinVertical(lipgloss.Center, table, notificatoins)
 	return lipgloss.Place(g.width, g.height, lipgloss.Center, lipgloss.Center, board)
-  
+
 }
 
 type game struct {
@@ -98,7 +100,7 @@ type game struct {
 	questionTextColor   lipgloss.Color
 	keyColor            lipgloss.Color
 	currentKeyColor     lipgloss.Color
-  passPhraseKeyColor  lipgloss.Color
+	passPhraseKeyColor  lipgloss.Color
 }
 
 func (g *game) Init() tea.Cmd {
@@ -132,8 +134,8 @@ func (g *game) View() string {
 
 func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-  case endGameMsg:
-  return betweenGame{}.Update(nil)
+	case endGameMsg:
+		return betweenGame{}.Update(nil)
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyRight:
@@ -233,18 +235,17 @@ func (g *game) Ended() bool {
 	return true
 }
 
-
 func (g *game) EndGame() tea.Cmd {
 	return func() tea.Msg {
-    return endGameMsg{}
-  }
+		return endGameMsg{}
+	}
 
 }
 
 func newGame(cfg config.Game, height, width int) (*game, error) {
 	g := game{}
-  g.height = height
-  g.width = width
+	g.height = height
+	g.width = width
 	g.rows = cfg.Rows
 	g.cols = cfg.Cols
 	g.actual = make([][]key.Key, cfg.Rows)
@@ -268,12 +269,12 @@ func newGame(cfg config.Game, height, width int) (*game, error) {
 	g.questionTextColor = cfg.QuestionTextColor
 	g.currentKeyColor = cfg.TableSelectedKeyColor
 	g.keyColor = cfg.TableEditableKeyColor
-  g.passPhraseKeyColor = cfg.PassPhraseKeyColor
+	g.passPhraseKeyColor = cfg.PassPhraseKeyColor
 	return &g, nil
 }
 
 func NewGame(cfg config.Config, height, width int) (*game, error) {
-  games = []*game{}
+	games = []*game{}
 	for _, g := range cfg.Games {
 		gm, err := newGame(g, height, width)
 		if err != nil {
@@ -281,9 +282,9 @@ func NewGame(cfg config.Config, height, width int) (*game, error) {
 		}
 		games = append(games, gm)
 	}
-  if len(games) == 0 {
-    return nil, errors.New("no game found in config")
-  }
+	if len(games) == 0 {
+		return nil, errors.New("no game found in config")
+	}
 	currentGame = 0
 	return games[0], nil
 }

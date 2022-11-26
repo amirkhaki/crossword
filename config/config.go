@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-  Games []Game `json:"games"`
+	Games []Game `json:"games"`
 }
 
 type Game struct {
@@ -37,7 +37,7 @@ type Game struct {
 	QuestionTextColor     lipgloss.Color `json:"question_text_color"`
 	TableEditableKeyColor lipgloss.Color `json:"table_editable_key_color"`
 	TableSelectedKeyColor lipgloss.Color `json:"table_selected_key_color"`
-  PassPhraseKeyColor    lipgloss.Color `json:"pass_phrase_key_color"`
+	PassPhraseKeyColor    lipgloss.Color `json:"pass_phrase_key_color"`
 }
 
 func New(path string) (cfg Config, err error) {

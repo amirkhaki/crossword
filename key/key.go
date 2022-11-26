@@ -72,8 +72,8 @@ func (s *state) UnmarshalText(text []byte) error {
 		*s = READONLY
 	} else if strings.ToLower(str) == "e" {
 		*s = EDITABLE
-  } else if strings.ToLower(str) == "p" {
-    *s = PASSPHRASE
+	} else if strings.ToLower(str) == "p" {
+		*s = PASSPHRASE
 	} else {
 		return errors.New("state must be editable (e) or readonly (r), got " + str)
 	}
@@ -83,7 +83,7 @@ func (s *state) UnmarshalText(text []byte) error {
 const (
 	EDITABLE state = iota
 	READONLY
-  PASSPHRASE
+	PASSPHRASE
 )
 
 type Key struct {
@@ -110,13 +110,13 @@ func (k Key) Render(color lipgloss.Color) string {
 }
 
 func (k Key) IsEqual(j Key) bool {
-  // treat PASSPHRASE as EDITABLE in comparison
-  if k.State == PASSPHRASE {
-    k.State = EDITABLE
-  }
-  if j.State == PASSPHRASE {
-    j.State = EDITABLE
-  }
+	// treat PASSPHRASE as EDITABLE in comparison
+	if k.State == PASSPHRASE {
+		k.State = EDITABLE
+	}
+	if j.State == PASSPHRASE {
+		j.State = EDITABLE
+	}
 	if k.Char == j.Char && k.State == j.State {
 		return true
 	}

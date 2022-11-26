@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"unicode"
 
 	"github.com/amirkhaki/crossword/config"
@@ -17,6 +18,71 @@ const (
 	colorYellow    = lipgloss.Color("#b59f3b")
 	colorGreen     = lipgloss.Color("#538d4e")
 )
+type endGameMsg struct{}
+var games []*game
+var currentGame int
+type endScreen struct {
+  
+}
+
+func (_ endScreen) Init() tea.Cmd {
+  return nil
+}
+
+func (e endScreen) Update(tea.Msg) (tea.Model, tea.Cmd) {
+  return e, tea.Quit
+}
+
+func (_ endScreen) View() string {
+  return "game ended, do something to quit"
+}
+
+type betweenGame struct {
+	updateCounter int
+}
+
+func (bg betweenGame) Init() tea.Cmd {
+	return nil
+}
+
+func (bg betweenGame) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	bg.updateCounter++
+	if bg.updateCounter > 1 {
+    if currentGame >= len(games)-1 {
+      return endScreen{}, nil
+    }
+		currentGame++
+		return games[currentGame], nil
+	}
+  return bg, nil
+}
+
+func (bg betweenGame) View() string {
+  g := games[currentGame]
+	var rows []string = make([]string, g.rows)
+	for i := 0; i < g.rows; i++ {
+		var cols []string = make([]string, g.cols)
+		for j := 0; j < g.cols; j++ {
+			if g.mustBe[i][j].State == key.PASSPHRASE {
+				cols[j] = g.mustBe[i][j].Render(g.passPhraseKeyColor)
+			} else {
+				cols[j] = g.mustBe[i][j].Render(g.keyColor)
+			}
+		}
+		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
+	}
+	table := lipgloss.JoinVertical(lipgloss.Center, rows...)
+	notificatoins := lipgloss.JoinVertical(lipgloss.Left, "Bordered keys are passphrase letters, you'll need them later", "Press any key to continue to next game")
+	notificatoins = lipgloss.NewStyle().
+		Padding(0, 1).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(g.questionTextColor).
+		Foreground(g.questionBorderColor).
+		Render(notificatoins)
+	board := lipgloss.JoinVertical(lipgloss.Center, table, notificatoins)
+	return lipgloss.Place(g.width, g.height, lipgloss.Center, lipgloss.Center, board)
+  
+}
 
 type game struct {
 	width               int
@@ -32,6 +98,7 @@ type game struct {
 	questionTextColor   lipgloss.Color
 	keyColor            lipgloss.Color
 	currentKeyColor     lipgloss.Color
+  passPhraseKeyColor  lipgloss.Color
 }
 
 func (g *game) Init() tea.Cmd {
@@ -65,6 +132,8 @@ func (g *game) View() string {
 
 func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+  case endGameMsg:
+  return betweenGame{}.Update(nil)
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyRight:
@@ -144,7 +213,7 @@ func (g *game) insertKey(r rune) tea.Cmd {
 	k := key.Letters[r]
 	g.actual[g.crrntRow][g.crrntCol].Char = k
 	if g.Ended() {
-		return tea.Quit
+		return g.EndGame()
 	}
 	return nil
 }
@@ -164,8 +233,18 @@ func (g *game) Ended() bool {
 	return true
 }
 
-func NewGame(cfg config.Config) (*game, error) {
+
+func (g *game) EndGame() tea.Cmd {
+	return func() tea.Msg {
+    return endGameMsg{}
+  }
+
+}
+
+func newGame(cfg config.Game, height, width int) (*game, error) {
 	g := game{}
+  g.height = height
+  g.width = width
 	g.rows = cfg.Rows
 	g.cols = cfg.Cols
 	g.actual = make([][]key.Key, cfg.Rows)
@@ -189,7 +268,24 @@ func NewGame(cfg config.Config) (*game, error) {
 	g.questionTextColor = cfg.QuestionTextColor
 	g.currentKeyColor = cfg.TableSelectedKeyColor
 	g.keyColor = cfg.TableEditableKeyColor
+  g.passPhraseKeyColor = cfg.PassPhraseKeyColor
 	return &g, nil
+}
+
+func NewGame(cfg config.Config, height, width int) (*game, error) {
+  games = []*game{}
+	for _, g := range cfg.Games {
+		gm, err := newGame(g, height, width)
+		if err != nil {
+			return nil, err
+		}
+		games = append(games, gm)
+	}
+  if len(games) == 0 {
+    return nil, errors.New("no game found in config")
+  }
+	currentGame = 0
+	return games[0], nil
 }
 
 // TODO show time of other users realtime

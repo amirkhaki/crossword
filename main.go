@@ -24,7 +24,7 @@ var serverHost *string
 var serverPort *int
 
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-	_, _, active := s.Pty()
+	pty, _, active := s.Pty()
 	if !active {
 		wish.Fatalln(s, "no active terminal, skipping")
 		return nil, nil
@@ -33,7 +33,7 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	g, err := model.NewGame(cfg)
+	g, err := model.NewGame(cfg, pty.Window.Height, pty.Window.Width)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	g, err := model.NewGame(cfg)
+	g, err := model.NewGame(cfg, 0, 0)
 	if err != nil {
 		log.Fatal(err)
 	}

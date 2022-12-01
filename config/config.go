@@ -25,13 +25,6 @@ type Game struct {
 	} `json:"actual"`
 	InitialCol int `json:"initial_col"`
 	InitialRow int `json:"initial_row"`
-	Mustbe     struct {
-		Keys []struct {
-			Row int     `json:"row"`
-			Col int     `json:"col"`
-			Key key.Key `json:"key"`
-		} `json:"keys"`
-	} `json:"mustbe"`
 	Questions             []string       `json:"questions"`
 	QuestionBorderColor   lipgloss.Color `json:"question_border_color"`
 	QuestionTextColor     lipgloss.Color `json:"question_text_color"`

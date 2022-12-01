@@ -87,8 +87,9 @@ const (
 )
 
 type Key struct {
-	Char  key   `json:"char"`
-	State state `json:"state"`
+	Char   key   `json:"char"`
+	State  state `json:"state"`
+	MustBe key   `json:"mustbe"`
 }
 
 func (k Key) Render(color lipgloss.Color) string {
@@ -107,6 +108,24 @@ func (k Key) Render(color lipgloss.Color) string {
 		BorderForeground(color).
 		Foreground(color).
 		Render(string(k.Char))
+}
+
+func (k  Key) MustRender(color lipgloss.Color) string {
+	if k.State == READONLY {
+		return lipgloss.NewStyle().
+			Padding(0, 1).
+			Border(lipgloss.HiddenBorder()).
+			BorderForeground(lipgloss.NoColor{}).
+			Foreground(lipgloss.NoColor{}).
+			Render(string(k.MustBe))
+
+	}
+	return lipgloss.NewStyle().
+		Padding(0, 1).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(color).
+		Foreground(color).
+		Render(string(k.MustBe))
 }
 
 func (k Key) IsEqual(j Key) bool {

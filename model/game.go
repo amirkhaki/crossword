@@ -65,10 +65,10 @@ func (bg betweenGame) View() string {
 	for i := 0; i < g.rows; i++ {
 		var cols []string = make([]string, g.cols)
 		for j := 0; j < g.cols; j++ {
-			if g.mustBe[i][j].State == key.PASSPHRASE {
-				cols[j] = g.mustBe[i][j].Render(g.passPhraseKeyColor)
+			if g.actual[i][j].State == key.PASSPHRASE {
+				cols[j] = g.actual[i][j].MustRender(g.passPhraseKeyColor)
 			} else {
-				cols[j] = g.mustBe[i][j].Render(g.keyColor)
+				cols[j] = g.actual[i][j].MustRender(g.keyColor)
 			}
 		}
 		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
@@ -92,7 +92,6 @@ type game struct {
 	rows                int
 	cols                int
 	actual              [][]key.Key
-	mustBe              [][]key.Key
 	crrntRow            int
 	crrntCol            int
 	questions           []string
@@ -227,7 +226,7 @@ func (g *game) doResize(msg tea.WindowSizeMsg) tea.Cmd {
 func (g *game) Ended() bool {
 	for i := 0; i < g.rows; i++ {
 		for j := 0; j < g.cols; j++ {
-			if !g.mustBe[i][j].IsEqual(g.actual[i][j]) {
+      if g.actual[i][j].Char != g.actual[i][j].MustBe {
 				return false
 			}
 		}
@@ -252,15 +251,8 @@ func newGame(cfg config.Game, height, width int) (*game, error) {
 	for i := 0; i < cfg.Rows; i++ {
 		g.actual[i] = make([]key.Key, cfg.Cols)
 	}
-	g.mustBe = make([][]key.Key, cfg.Rows)
-	for i := 0; i < cfg.Rows; i++ {
-		g.mustBe[i] = make([]key.Key, cfg.Cols)
-	}
 	for _, v := range cfg.Actual.Keys {
 		g.actual[v.Row][v.Col] = v.Key
-	}
-	for _, v := range cfg.Mustbe.Keys {
-		g.mustBe[v.Row][v.Col] = v.Key
 	}
 	g.crrntCol = cfg.InitialCol
 	g.crrntRow = cfg.InitialRow

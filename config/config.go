@@ -7,10 +7,12 @@ import (
 
 	"github.com/amirkhaki/crossword/key"
 	"github.com/charmbracelet/lipgloss"
+  "github.com/amirkhaki/crossword/user"
 )
 
 type Config struct {
 	Games []Game `json:"games"`
+  Users []user.User `json:"users"`
 }
 
 type Game struct {

@@ -4,18 +4,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/amirkhaki/crossword/config"
-	"github.com/amirkhaki/crossword/model"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/wish"
-	bm "github.com/charmbracelet/wish/bubbletea"
-	lm "github.com/charmbracelet/wish/logging"
-	"github.com/gliderlabs/ssh"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/amirkhaki/crossword/config"
+	"github.com/amirkhaki/crossword/model"
+	"github.com/amirkhaki/crossword/storage"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/wish"
+	bm "github.com/charmbracelet/wish/bubbletea"
+	lm "github.com/charmbracelet/wish/logging"
+	"github.com/gliderlabs/ssh"
 )
 
 var withServer *bool
@@ -29,10 +31,7 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		wish.Fatalln(s, "no active terminal, skipping")
 		return nil, nil
 	}
-	cfg, err := config.New(*configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+
 	g, err := model.NewGame(cfg, pty.Window.Height, pty.Window.Width)
 	if err != nil {
 		log.Fatal(err)
@@ -40,11 +39,28 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 	return g, []tea.ProgramOption{tea.WithAltScreen()}
 }
 
+var cfg config.Config
+var store storage.Storage
+
 func init() {
 	configPath = flag.String("config", "config.json", "path to config file, format must be json")
 	withServer = flag.Bool("server", false, "whether run ssh server or not")
 	serverHost = flag.String("host", "127.0.0.1", "host for server")
 	serverPort = flag.Int("port", 2222, "port for server")
+	flag.Parse()
+	var err error
+	cfg, err = config.New(*configPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	store = storage.NewInmemory()
+	for _, usr := range cfg.Users {
+		err = store.AddUser(context.Background(), usr)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 }
 
 // having a map of [user][]program
@@ -53,11 +69,6 @@ func init() {
 // thinking about having a map[user]struct {[]program, state}
 
 func main() {
-	flag.Parse()
-	cfg, err := config.New(*configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
 	g, err := model.NewGame(cfg, 0, 0)
 	if err != nil {
 		log.Fatal(err)

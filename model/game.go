@@ -5,7 +5,9 @@ import (
 	"unicode"
 
 	"github.com/amirkhaki/crossword/config"
+	"github.com/amirkhaki/crossword/data"
 	"github.com/amirkhaki/crossword/key"
+	"github.com/amirkhaki/crossword/user"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -61,14 +63,30 @@ func (bg betweenGame) Update(tea.Msg) (tea.Model, tea.Cmd) {
 
 func (bg betweenGame) View() string {
 	g := games[currentGame]
-	var rows []string = make([]string, g.rows)
-	for i := 0; i < g.rows; i++ {
-		var cols []string = make([]string, g.cols)
-		for j := 0; j < g.cols; j++ {
-			if g.actual[i][j].State == key.PASSPHRASE {
-				cols[j] = g.actual[i][j].MustRender(g.passPhraseKeyColor)
+	rowCount, err := data.GetGroupRows(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return "an error accured: " + err.Error() + " press any keyboard key to exit"
+	}
+	colCount, err := data.GetGroupCols(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return "an error accured: " + err.Error() + " press any keyboard key to exit"
+	}
+	var rows []string = make([]string, rowCount)
+	for i := 0; i < rowCount; i++ {
+		var cols []string = make([]string, colCount)
+		for j := 0; j < colCount; j++ {
+			k, err := data.GetGroupRowColumn(g.usr.Group, i, j)
+			if err != nil {
+				g.err = err
+				return "an error accured: " + err.Error() + " press any keyboard key to exit"
+			}
+
+			if k.State == key.PASSPHRASE {
+				cols[j] = k.MustRender(g.passPhraseKeyColor)
 			} else {
-				cols[j] = g.actual[i][j].MustRender(g.keyColor)
+				cols[j] = k.MustRender(g.keyColor)
 			}
 		}
 		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
@@ -87,14 +105,12 @@ func (bg betweenGame) View() string {
 }
 
 type game struct {
+	err                 error
+	usr                 user.User
 	width               int
 	height              int
-	rows                int
-	cols                int
-	actual              [][]key.Key
 	crrntRow            int
 	crrntCol            int
-	questions           []string
 	questionBorderColor lipgloss.Color
 	questionTextColor   lipgloss.Color
 	keyColor            lipgloss.Color
@@ -107,20 +123,37 @@ func (g *game) Init() tea.Cmd {
 }
 
 func (g *game) View() string {
-	var rows []string = make([]string, g.rows)
-	for i := 0; i < g.rows; i++ {
-		var cols []string = make([]string, g.cols)
-		for j := 0; j < g.cols; j++ {
+	rowCount, err := data.GetGroupRows(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return "an error accured: " + err.Error() + " press any keyboard key to exit"
+	}
+	colCount, err := data.GetGroupCols(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return "an error accured: " + err.Error() + " press any keyboard key to exit"
+	}
+	var rows []string = make([]string, rowCount)
+	for i := 0; i < rowCount; i++ {
+		var cols []string = make([]string, colCount)
+		for j := 0; j < colCount; j++ {
+			k, err := data.GetGroupRowColumn(g.usr.Group, i, j)
+			if err != nil {
+				g.err = err
+				return "an error accured: " + err.Error() + " press any keyboard key to exit"
+			}
+
 			if i == g.crrntRow && j == g.crrntCol {
-				cols[j] = g.actual[i][j].Render(g.currentKeyColor)
+				cols[j] = k.Render(g.currentKeyColor)
 			} else {
-				cols[j] = g.actual[i][j].Render(g.keyColor)
+				cols[j] = k.Render(g.keyColor)
 			}
 		}
 		rows[i] = lipgloss.JoinHorizontal(lipgloss.Bottom, cols...)
 	}
+	questionList, err := data.GetGroupQuestions(g.usr.Group)
 	table := lipgloss.JoinVertical(lipgloss.Center, rows...)
-	questions := lipgloss.JoinVertical(lipgloss.Left, g.questions...)
+	questions := lipgloss.JoinVertical(lipgloss.Left, questionList...)
 	questions = lipgloss.NewStyle().
 		Padding(0, 1).
 		Border(lipgloss.NormalBorder()).
@@ -158,11 +191,27 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return g, nil
 }
 
+type errAccuredMsg struct{}
+
 func (g *game) goDown() tea.Cmd {
-	if g.crrntRow+1 == g.rows {
+	rowCount, err := data.GetGroupRows(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if g.crrntRow+1 == rowCount {
 		return nil
 	}
-	if g.actual[g.crrntRow+1][g.crrntCol].State == key.READONLY {
+	k, err := data.GetGroupRowColumn(g.usr.Group, g.crrntRow+1, g.crrntCol)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if k.State == key.READONLY {
 		return nil
 	}
 	g.crrntRow++
@@ -174,7 +223,14 @@ func (g *game) goUp() tea.Cmd {
 	if g.crrntRow == 0 {
 		return nil
 	}
-	if g.actual[g.crrntRow-1][g.crrntCol].State == key.READONLY {
+	k, err := data.GetGroupRowColumn(g.usr.Group, g.crrntRow-1, g.crrntCol)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if k.State == key.READONLY {
 		return nil
 	}
 	g.crrntRow--
@@ -186,7 +242,14 @@ func (g *game) goLeft() tea.Cmd {
 	if g.crrntCol == 0 {
 		return nil
 	}
-	if g.actual[g.crrntRow][g.crrntCol-1].State == key.READONLY {
+	k, err := data.GetGroupRowColumn(g.usr.Group, g.crrntRow, g.crrntCol-1)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if k.State == key.READONLY {
 		return nil
 	}
 	g.crrntCol--
@@ -195,10 +258,24 @@ func (g *game) goLeft() tea.Cmd {
 }
 
 func (g *game) goRight() tea.Cmd {
-	if g.crrntCol+1 == g.cols {
+	colCount, err := data.GetGroupCols(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if g.crrntCol+1 == colCount {
 		return nil
 	}
-	if g.actual[g.crrntRow][g.crrntCol+1].State == key.READONLY {
+	k, err := data.GetGroupRowColumn(g.usr.Group, g.crrntRow, g.crrntCol+1)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+	if k.State == key.READONLY {
 		return nil
 	}
 	g.crrntCol++
@@ -207,12 +284,30 @@ func (g *game) goRight() tea.Cmd {
 }
 
 func (g *game) insertKey(r rune) tea.Cmd {
-	if !unicode.IsLetter(r) || g.actual[g.crrntRow][g.crrntCol].State == key.READONLY {
+	k, err := data.GetGroupRowColumn(g.usr.Group, g.crrntRow, g.crrntCol)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+
+	if !unicode.IsLetter(r) || k.State == key.READONLY {
 		return nil
 	}
+
 	r = unicode.ToUpper(r)
-	k := key.Letters[r]
-	g.actual[g.crrntRow][g.crrntCol].Char = k
+	char := key.Letters[r]
+	k.Char = char
+	err = data.GroupInsertKeyAt(g.usr.Group, k, g.crrntRow, g.crrntCol)
+
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+
 	if g.Ended() {
 		return g.EndGame()
 	}
@@ -224,14 +319,13 @@ func (g *game) doResize(msg tea.WindowSizeMsg) tea.Cmd {
 	return nil
 }
 func (g *game) Ended() bool {
-	for i := 0; i < g.rows; i++ {
-		for j := 0; j < g.cols; j++ {
-      if g.actual[i][j].Char != g.actual[i][j].MustBe {
-				return false
-			}
-		}
-	}
-	return true
+  ended, err := data.NewData().GroupGameEnded(g.usr.Group)
+
+  if err != nil {
+    g.err = err
+  }
+
+  return ended
 }
 
 func (g *game) EndGame() tea.Cmd {
@@ -245,18 +339,8 @@ func newGame(cfg config.Game, height, width int) (*game, error) {
 	g := game{}
 	g.height = height
 	g.width = width
-	g.rows = cfg.Rows
-	g.cols = cfg.Cols
-	g.actual = make([][]key.Key, cfg.Rows)
-	for i := 0; i < cfg.Rows; i++ {
-		g.actual[i] = make([]key.Key, cfg.Cols)
-	}
-	for _, v := range cfg.Actual.Keys {
-		g.actual[v.Row][v.Col] = v.Key
-	}
 	g.crrntCol = cfg.InitialCol
 	g.crrntRow = cfg.InitialRow
-	g.questions = cfg.Questions
 	g.questionBorderColor = cfg.QuestionBorderColor
 	g.questionTextColor = cfg.QuestionTextColor
 	g.currentKeyColor = cfg.TableSelectedKeyColor

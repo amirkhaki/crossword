@@ -6,7 +6,7 @@ type Group struct {
 
 type User struct {
 	Username string
-	password string
+	Password string
 	Group    Group
 }
 
@@ -18,5 +18,5 @@ func NewGroup(name string) Group {
 
 
 func NewUser(username, password string, grp Group) User {
-  return User{Username: username, password: password, Group: grp}
+  return User{Username: username, Password: password, Group: grp}
 }

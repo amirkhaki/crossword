@@ -7,6 +7,8 @@ import (
 	"github.com/amirkhaki/crossword/user"
 )
 
+var Store Storage
+
 type UserNotFoundError error
 type GroupNotFoundError error
 

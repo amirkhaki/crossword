@@ -1,7 +1,6 @@
 package model
 
 import (
-	"errors"
 	"unicode"
 
 	"github.com/amirkhaki/crossword/config"
@@ -23,9 +22,6 @@ const (
 
 type endGameMsg struct{}
 
-var games []*game
-var currentGame int
-
 type endScreen struct {
 }
 
@@ -41,28 +37,25 @@ func (_ endScreen) View() string {
 	return "game ended, do something to quit"
 }
 
-type betweenGame struct {
-	updateCounter int
+type game struct {
+	err                 error
+	updateCounter       int
+	usr                 user.User
+	width               int
+	height              int
+	crrntRow            int
+	crrntCol            int
+	questionBorderColor lipgloss.Color
+	questionTextColor   lipgloss.Color
+	keyColor            lipgloss.Color
+	currentKeyColor     lipgloss.Color
+	passPhraseKeyColor  lipgloss.Color
 }
 
-func (bg betweenGame) Init() tea.Cmd {
+func (g *game) Init() tea.Cmd {
 	return nil
 }
-
-func (bg betweenGame) Update(tea.Msg) (tea.Model, tea.Cmd) {
-	bg.updateCounter++
-	if bg.updateCounter > 1 {
-		if currentGame >= len(games)-1 {
-			return endScreen{}, nil
-		}
-		currentGame++
-		return games[currentGame], nil
-	}
-	return bg, nil
-}
-
-func (bg betweenGame) View() string {
-	g := games[currentGame]
+func (g *game) afterGameView() string {
 	rowCount, err := data.GetGroupRows(g.usr.Group)
 	if err != nil {
 		g.err = err
@@ -101,28 +94,20 @@ func (bg betweenGame) View() string {
 		Render(notificatoins)
 	board := lipgloss.JoinVertical(lipgloss.Center, table, notificatoins)
 	return lipgloss.Place(g.width, g.height, lipgloss.Center, lipgloss.Center, board)
-
-}
-
-type game struct {
-	err                 error
-	usr                 user.User
-	width               int
-	height              int
-	crrntRow            int
-	crrntCol            int
-	questionBorderColor lipgloss.Color
-	questionTextColor   lipgloss.Color
-	keyColor            lipgloss.Color
-	currentKeyColor     lipgloss.Color
-	passPhraseKeyColor  lipgloss.Color
-}
-
-func (g *game) Init() tea.Cmd {
-	return nil
 }
 
 func (g *game) View() string {
+	if g.err != nil {
+		return "an error accured: " + g.err.Error() + " press any keyboard key to exit"
+	}
+	isAfterGame, err := data.IsAfterGame(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return "an error accured: " + err.Error() + " press any keyboard key to exit"
+	}
+	if isAfterGame {
+		return g.afterGameView()
+	}
 	rowCount, err := data.GetGroupRows(g.usr.Group)
 	if err != nil {
 		g.err = err
@@ -165,9 +150,21 @@ func (g *game) View() string {
 }
 
 func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if g.err != nil {
+		return g, tea.Quit
+	}
+	if g.Ended() {
+		if g.updateCounter < 1 {
+			g.updateCounter++
+			return g, nil
+		} else {
+      return g, g.gotoNextGame()
+    }
+	}
 	switch msg := msg.(type) {
 	case endGameMsg:
-		return betweenGame{}.Update(nil)
+		//TODO show appropriate view end screen
+		return g, g.gotoNextGame()
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyRight:
@@ -189,6 +186,34 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return g, g.doResize(msg)
 	}
 	return g, nil
+}
+
+func (g *game) gotoNextGame() tea.Cmd {
+	err := data.GroupGotoNextGame(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return func() tea.Msg {
+			return errAccuredMsg{}
+		}
+	}
+
+	var initialRow, initialCol int
+
+	initialCol, err = data.GetGroupInitialCol(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return nil
+	}
+
+	initialRow, err = data.GetGroupInitialRow(g.usr.Group)
+	if err != nil {
+		g.err = err
+		return nil
+	}
+
+	g.crrntCol = initialCol
+	g.crrntRow = initialRow
+	return nil
 }
 
 type errAccuredMsg struct{}
@@ -309,6 +334,7 @@ func (g *game) insertKey(r rune) tea.Cmd {
 	}
 
 	if g.Ended() {
+		g.updateCounter = 0
 		return g.EndGame()
 	}
 	return nil
@@ -319,13 +345,13 @@ func (g *game) doResize(msg tea.WindowSizeMsg) tea.Cmd {
 	return nil
 }
 func (g *game) Ended() bool {
-  ended, err := data.NewData().GroupGameEnded(g.usr.Group)
+	ended, err := data.GroupGameEnded(g.usr.Group)
 
-  if err != nil {
-    g.err = err
-  }
+	if err != nil {
+		g.err = err
+	}
 
-  return ended
+	return ended
 }
 
 func (g *game) EndGame() tea.Cmd {
@@ -335,34 +361,30 @@ func (g *game) EndGame() tea.Cmd {
 
 }
 
-func newGame(cfg config.Game, height, width int) (*game, error) {
+func newGame(cfg config.Colors, height, width int, u user.User) (_ *game, err error) {
+	var initialRow, initialCol int
+
+	initialCol, err = data.GetGroupInitialCol(u.Group)
+	if err != nil {
+		return
+	}
+
+	initialRow, err = data.GetGroupInitialRow(u.Group)
+	if err != nil {
+		return
+	}
 	g := game{}
 	g.height = height
 	g.width = width
-	g.crrntCol = cfg.InitialCol
-	g.crrntRow = cfg.InitialRow
 	g.questionBorderColor = cfg.QuestionBorderColor
 	g.questionTextColor = cfg.QuestionTextColor
 	g.currentKeyColor = cfg.TableSelectedKeyColor
 	g.keyColor = cfg.TableEditableKeyColor
 	g.passPhraseKeyColor = cfg.PassPhraseKeyColor
+	g.usr = u
+	g.crrntCol = initialCol
+	g.crrntRow = initialRow
 	return &g, nil
-}
-
-func NewGame(cfg config.Config, height, width int) (*game, error) {
-	games = []*game{}
-	for _, g := range cfg.Games {
-		gm, err := newGame(g, height, width)
-		if err != nil {
-			return nil, err
-		}
-		games = append(games, gm)
-	}
-	if len(games) == 0 {
-		return nil, errors.New("no game found in config")
-	}
-	currentGame = 0
-	return games[0], nil
 }
 
 // TODO show time of other users realtime

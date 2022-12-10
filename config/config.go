@@ -6,13 +6,22 @@ import (
 	"os"
 
 	"github.com/amirkhaki/crossword/key"
+	"github.com/amirkhaki/crossword/user"
 	"github.com/charmbracelet/lipgloss"
-  "github.com/amirkhaki/crossword/user"
 )
 
+type Colors struct {
+	QuestionBorderColor   lipgloss.Color `json:"question_border_color"`
+	QuestionTextColor     lipgloss.Color `json:"question_text_color"`
+	TableEditableKeyColor lipgloss.Color `json:"table_editable_key_color"`
+	TableSelectedKeyColor lipgloss.Color `json:"table_selected_key_color"`
+	PassPhraseKeyColor    lipgloss.Color `json:"pass_phrase_key_color"`
+}
+
 type Config struct {
-	Games []Game `json:"games"`
-  Users []user.User `json:"users"`
+	Games  []Game      `json:"games"`
+	Users  []user.User `json:"users"`
+	Colors Colors      `json:"colors"`
 }
 
 type Game struct {
@@ -25,14 +34,9 @@ type Game struct {
 			Key key.Key `json:"key"`
 		} `json:"keys"`
 	} `json:"actual"`
-	InitialCol int `json:"initial_col"`
-	InitialRow int `json:"initial_row"`
-	Questions             []string       `json:"questions"`
-	QuestionBorderColor   lipgloss.Color `json:"question_border_color"`
-	QuestionTextColor     lipgloss.Color `json:"question_text_color"`
-	TableEditableKeyColor lipgloss.Color `json:"table_editable_key_color"`
-	TableSelectedKeyColor lipgloss.Color `json:"table_selected_key_color"`
-	PassPhraseKeyColor    lipgloss.Color `json:"pass_phrase_key_color"`
+	InitialCol int      `json:"initial_col"`
+	InitialRow int      `json:"initial_row"`
+	Questions  []string `json:"questions"`
 }
 
 func New(path string) (cfg Config, err error) {

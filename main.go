@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/amirkhaki/crossword/config"
+	"github.com/amirkhaki/crossword/data"
 	"github.com/amirkhaki/crossword/model"
 	"github.com/amirkhaki/crossword/storage"
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,15 +33,15 @@ func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		return nil, nil
 	}
 
-	g, err := model.NewGame(cfg, pty.Window.Height, pty.Window.Width)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return g, []tea.ProgramOption{tea.WithAltScreen()}
+	// g, err := model.NewGame(cfg, pty.Window.Height, pty.Window.Width)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	l := model.NewLogin(cfg, pty.Window.Height, pty.Window.Width)
+	return l, []tea.ProgramOption{tea.WithAltScreen()}
 }
 
 var cfg config.Config
-var store storage.Storage
 
 func init() {
 	configPath = flag.String("config", "config.json", "path to config file, format must be json")
@@ -53,10 +54,14 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	store = storage.NewInmemory()
+	storage.Store = storage.NewInmemory()
 	for _, usr := range cfg.Users {
-		err = store.AddUser(context.Background(), usr)
+		err = storage.Store.AddUser(context.Background(), usr)
 		if err != nil {
+			log.Fatal(err)
+		}
+		err = data.AddGroup(usr.Group, cfg.Games)
+		if err, ok := err.(data.GroupExistsError); err != nil && !ok {
 			log.Fatal(err)
 		}
 	}
@@ -69,10 +74,6 @@ func init() {
 // thinking about having a map[user]struct {[]program, state}
 
 func main() {
-	g, err := model.NewGame(cfg, 0, 0)
-	if err != nil {
-		log.Fatal(err)
-	}
 	if *withServer {
 		s, err := wish.NewServer(
 			wish.WithAddress(fmt.Sprintf("%s:%d", *serverHost, *serverPort)),
@@ -103,7 +104,8 @@ func main() {
 		}
 
 	} else {
-		p := tea.NewProgram(g)
+		login := model.NewLogin(cfg, 0, 0)
+		p := tea.NewProgram(login)
 		if err := p.Start(); err != nil {
 			log.Fatal(err)
 		}

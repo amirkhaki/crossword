@@ -20,6 +20,7 @@ type Colors struct {
 
 type Config struct {
 	Games  []Game      `json:"games"`
+  Passphrase string `json:"passphrase"`
 	Users  []user.User `json:"users"`
 	Colors Colors      `json:"colors"`
 }

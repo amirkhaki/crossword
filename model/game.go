@@ -1,6 +1,8 @@
 package model
 
 import (
+	"fmt"
+	"time"
 	"unicode"
 
 	"github.com/amirkhaki/crossword/config"
@@ -8,6 +10,7 @@ import (
 	"github.com/amirkhaki/crossword/key"
 	"github.com/amirkhaki/crossword/user"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -23,18 +26,93 @@ const (
 type endGameMsg struct{}
 
 type endScreen struct {
+	height int
+	width  int
+	inited bool
 }
 
 func (_ endScreen) Init() tea.Cmd {
 	return nil
 }
 
-func (e endScreen) Update(tea.Msg) (tea.Model, tea.Cmd) {
-	return e, tea.Quit
+type tickMsg struct{}
+
+func doTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg{}
+	})
 }
 
-func (_ endScreen) View() string {
-	return "game ended, do something to quit"
+func (e endScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c":
+			cmd = tea.Quit
+		}
+	case tickMsg:
+		cmd = doTick()
+	default:
+		if !e.inited {
+			cmd = doTick()
+		}
+	}
+	return e, cmd
+}
+
+func (e endScreen) View() string {
+	style := lipgloss.NewStyle().
+		Padding(1, 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62"))
+	var rows []string
+	for _, v := range data.GetItems() {
+		rows = append(rows, style.Render(fmt.Sprintf("%s\n%s", v.Title(), v.Desciption())))
+	}
+	return lipgloss.Place(e.width, e.height, lipgloss.Center, lipgloss.Center,
+		style.Render(lipgloss.JoinVertical(lipgloss.Center, rows...)))
+
+}
+
+type passphraseScreen struct {
+	width      int
+	height     int
+	usr        user.User
+	passphrase textinput.Model
+}
+
+func (ps passphraseScreen) Init() tea.Cmd {
+	return nil
+}
+
+func (ps passphraseScreen) checkAnswer() (tea.Model, tea.Cmd) {
+	ok, err := data.GroupIsPassphraseCorrect(ps.usr.Group, ps.passphrase.Value())
+	if err != nil || !ok {
+		return ps, nil
+	}
+	return endScreen{height: ps.height, width: ps.width}, nil
+
+}
+
+func (ps passphraseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+  ps.passphrase.Focus()
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl-c":
+			return ps, tea.Quit
+		case "enter":
+			return ps.checkAnswer()
+		}
+
+	}
+	return ps, nil
+}
+
+func (ps passphraseScreen) View() string {
+	return lipgloss.Place(ps.width, ps.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Left, "Please enter passphrase", ps.passphrase.View()))
 }
 
 type game struct {
@@ -153,13 +231,16 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if g.err != nil {
 		return g, tea.Quit
 	}
+	if _, ok := msg.(AllDoneMsg); ok {
+		return passphraseScreen{height: g.height, width: g.width, usr: g.usr}, nil
+	}
 	if g.Ended() {
 		if g.updateCounter < 1 {
 			g.updateCounter++
 			return g, nil
 		} else {
-      return g, g.gotoNextGame()
-    }
+			return g, g.gotoNextGame()
+		}
 	}
 	switch msg := msg.(type) {
 	case endGameMsg:
@@ -188,9 +269,16 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return g, nil
 }
 
+type AllDoneMsg struct{}
+
 func (g *game) gotoNextGame() tea.Cmd {
 	err := data.GroupGotoNextGame(g.usr.Group)
 	if err != nil {
+		if _, ok := err.(data.AllGamesDoneError); ok {
+			return func() tea.Msg {
+				return AllDoneMsg{}
+			}
+		}
 		g.err = err
 		return func() tea.Msg {
 			return errAccuredMsg{}

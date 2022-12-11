@@ -60,7 +60,7 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = data.AddGroup(usr.Group, cfg.Games)
+		err = data.AddGroup(usr.Group, cfg.Games, cfg.Passphrase)
 		if err, ok := err.(data.GroupExistsError); err != nil && !ok {
 			log.Fatal(err)
 		}

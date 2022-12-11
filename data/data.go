@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/amirkhaki/crossword/config"
@@ -41,14 +42,59 @@ func (g gameState) isValidKey(row, col int) bool {
 	return true
 }
 
+type GroupItem struct {
+	startTime int64
+	endTime   int64
+	groupName string
+}
+
+func (g GroupItem) FilterValue() string {
+	return g.groupName
+}
+
+func (g GroupItem) Title() string {
+	return g.groupName
+}
+
+func (g GroupItem) Desciption() string {
+	return fmt.Sprintf("Ended in %d seconds", g.endTime-g.startTime)
+}
+
 type Data struct {
 	games map[user.Group]struct {
 		states           []gameState
 		currentGameIndex int
 		isAfterGame      bool
 		startTime        int64
+		endTime          int64
 		started          bool
+		passphrase       string
 	}
+}
+
+func (d *Data) GetItems() (l []GroupItem) {
+	for k, v := range d.games {
+		if v.endTime == 0 {
+			continue
+		}
+		l = append(l, GroupItem{startTime: v.startTime, endTime: v.endTime, groupName: k.Name})
+	}
+	sort.Slice(l, func(i, j int) bool {
+		return (l[i].endTime - l[i].startTime) <= (l[j].endTime - l[j].startTime)
+	})
+	return
+}
+
+func (d *Data) GroupIsPassphraseCorrect(grp user.Group, passphrase string) (_ bool, err error) {
+	g, ok := d.games[grp]
+	if !ok {
+		err = GroupNotFoundError(fmt.Errorf("GetGroupInitialCol: Group not found"))
+		return
+	}
+	if g.passphrase == passphrase {
+		return true, nil
+	}
+	return false, nil
 }
 
 type GroupNotFoundError error
@@ -165,7 +211,7 @@ func (d *Data) GroupGameEnded(grp user.Group) (_ bool, err error) {
 
 type GroupExistsError error
 
-func (d *Data) AddGroup(grp user.Group, cfgs []config.Game) error {
+func (d *Data) AddGroup(grp user.Group, cfgs []config.Game, ps string) error {
 	g, ok := d.games[grp]
 	if ok {
 		return GroupExistsError(fmt.Errorf("AddGroup: group already exists"))
@@ -185,15 +231,23 @@ func (d *Data) AddGroup(grp user.Group, cfgs []config.Game) error {
 			state.actual[k.Row][k.Col] = k.Key
 		}
 		g.states = append(g.states, state)
+    g.passphrase = ps
 	}
 	d.games[grp] = g
 	return nil
 }
 
+type AllGamesDoneError error
+
 func (d *Data) GroupGotoNextGame(grp user.Group) error {
 	g, ok := d.games[grp]
 	if !ok {
 		return GroupNotFoundError(fmt.Errorf("GroupGotoNextGame: Group not found"))
+	}
+	if len(g.states)-1 == g.currentGameIndex {
+		g.endTime = time.Now().Unix()
+		d.games[grp] = g
+		return AllGamesDoneError(fmt.Errorf("GroupGotoNextGame: all games done"))
 	}
 	g.currentGameIndex++
 	g.isAfterGame = false
@@ -201,7 +255,6 @@ func (d *Data) GroupGotoNextGame(grp user.Group) error {
 	return nil
 }
 
-//TODO insert key and initialise data
 
 func NewData() *Data {
 	d := Data{}
@@ -210,7 +263,9 @@ func NewData() *Data {
 		currentGameIndex int
 		isAfterGame      bool
 		startTime        int64
+		endTime          int64
 		started          bool
+		passphrase       string
 	})
 	return &d
 }

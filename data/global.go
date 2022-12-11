@@ -14,8 +14,16 @@ func init() {
 	}
 }
 
+func GroupIsPassphraseCorrect(grp user.Group, passphrase string) (bool, error) {
+	return d.GroupIsPassphraseCorrect(grp, passphrase)
+}
+
+func GetItems() []GroupItem {
+	return d.GetItems()
+}
+
 func IsAfterGame(grp user.Group) (bool, error) {
-  return d.GroupIsAfterGame(grp)
+	return d.GroupIsAfterGame(grp)
 }
 
 func GetGroupRows(grp user.Group) (int, error) {
@@ -33,24 +41,24 @@ func GetGroupQuestions(grp user.Group) ([]string, error) {
 	return d.GetGroupQuestions(grp)
 }
 func GroupInsertKeyAt(grp user.Group, k key.Key, row, col int) (err error) {
-  return d.GroupInsertKeyAt(grp, k, row, col)
+	return d.GroupInsertKeyAt(grp, k, row, col)
 }
 
-func AddGroup(grp user.Group, cfgs []config.Game) error {
-  return d.AddGroup(grp, cfgs)
+func AddGroup(grp user.Group, cfgs []config.Game, ps string) error {
+	return d.AddGroup(grp, cfgs, ps)
 }
 
 func GroupGotoNextGame(grp user.Group) error {
-  return d.GroupGotoNextGame(grp)
+	return d.GroupGotoNextGame(grp)
 }
 
 func GetGroupInitialRow(grp user.Group) (int, error) {
-  return d.GetGroupInitialRow(grp)
+	return d.GetGroupInitialRow(grp)
 }
 
 func GetGroupInitialCol(grp user.Group) (int, error) {
-  return d.GetGroupInitialCol(grp)
+	return d.GetGroupInitialCol(grp)
 }
 func GroupGameEnded(grp user.Group) (bool, error) {
-  return d.GroupGameEnded(grp)
+	return d.GroupGameEnded(grp)
 }

@@ -96,7 +96,7 @@ func (ps passphraseScreen) checkAnswer() (tea.Model, tea.Cmd) {
 }
 
 func (ps passphraseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-  ps.passphrase.Focus()
+	ps.passphrase.Focus()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {

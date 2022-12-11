@@ -110,7 +110,7 @@ func (k Key) Render(color lipgloss.Color) string {
 		Render(string(k.Char))
 }
 
-func (k  Key) MustRender(color lipgloss.Color) string {
+func (k Key) MustRender(color lipgloss.Color) string {
 	if k.State == READONLY {
 		return lipgloss.NewStyle().
 			Padding(0, 1).

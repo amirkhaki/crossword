@@ -10,13 +10,10 @@ type User struct {
 	Group    Group
 }
 
-
-
 func NewGroup(name string) Group {
-  return Group{Name: name}
+	return Group{Name: name}
 }
 
-
 func NewUser(username, password string, grp Group) User {
-  return User{Username: username, Password: password, Group: grp}
+	return User{Username: username, Password: password, Group: grp}
 }

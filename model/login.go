@@ -49,7 +49,7 @@ func (l login) loginUser() (tea.Model, tea.Cmd) {
 	if err != nil {
 		form := NewLogin(l.cfg, l.height, l.width)
 		form.status = "an error accured: " + err.Error()
-    return form, nil
+		return form, nil
 	}
 	return g.Update(nil)
 }
@@ -103,6 +103,6 @@ func NewLogin(cfg config.Config, height, width int) login {
 	l.username.Focus()
 	l.password = textinput.New()
 	l.password.Placeholder = "password"
-  l.cfg = cfg
+	l.cfg = cfg
 	return l
 }

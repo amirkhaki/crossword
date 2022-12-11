@@ -1,8 +1,8 @@
 package storage
 
 import (
+	"context"
 	"fmt"
-  "context"
 
 	"github.com/amirkhaki/crossword/user"
 )
@@ -13,8 +13,8 @@ type UserNotFoundError error
 type GroupNotFoundError error
 
 type inmemory struct {
-	users []user.User
-  groups []user.Group
+	users  []user.User
+	groups []user.Group
 }
 
 func (im *inmemory) AddUser(ctx context.Context, u user.User) error {
@@ -75,9 +75,8 @@ func (im *inmemory) GetGroup(ctx context.Context, u user.Group, equal func(user.
 	return u, GroupNotFoundError(fmt.Errorf("GetGroup: user not found"))
 }
 
-
 func NewInmemory() Storage {
-  i := inmemory{}
-  i.users = make([]user.User, 0)
-  return &i
+	i := inmemory{}
+	i.users = make([]user.User, 0)
+	return &i
 }

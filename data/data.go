@@ -231,7 +231,7 @@ func (d *Data) AddGroup(grp user.Group, cfgs []config.Game, ps string) error {
 			state.actual[k.Row][k.Col] = k.Key
 		}
 		g.states = append(g.states, state)
-    g.passphrase = ps
+		g.passphrase = ps
 	}
 	d.games[grp] = g
 	return nil
@@ -254,7 +254,6 @@ func (d *Data) GroupGotoNextGame(grp user.Group) error {
 	d.games[grp] = g
 	return nil
 }
-
 
 func NewData() *Data {
 	d := Data{}

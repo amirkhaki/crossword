@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/amirkhaki/crossword/config"
@@ -61,6 +62,7 @@ func (g GroupItem) Desciption() string {
 }
 
 type Data struct {
+	mu    sync.Mutex
 	games map[user.Group]struct {
 		states           []gameState
 		currentGameIndex int
@@ -73,6 +75,8 @@ type Data struct {
 }
 
 func (d *Data) GetItems() (l []GroupItem) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	for k, v := range d.games {
 		if v.endTime == 0 {
 			continue
@@ -86,6 +90,8 @@ func (d *Data) GetItems() (l []GroupItem) {
 }
 
 func (d *Data) GroupIsPassphraseCorrect(grp user.Group, passphrase string) (_ bool, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupInitialCol: Group not found"))
@@ -100,6 +106,8 @@ func (d *Data) GroupIsPassphraseCorrect(grp user.Group, passphrase string) (_ bo
 type GroupNotFoundError error
 
 func (d *Data) GetGroupInitialCol(grp user.Group) (_ int, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupInitialCol: Group not found"))
@@ -110,6 +118,8 @@ func (d *Data) GetGroupInitialCol(grp user.Group) (_ int, err error) {
 }
 
 func (d *Data) GetGroupInitialRow(grp user.Group) (_ int, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupInitialRow: Group not found"))
@@ -120,6 +130,8 @@ func (d *Data) GetGroupInitialRow(grp user.Group) (_ int, err error) {
 }
 
 func (d *Data) GetGroupRows(grp user.Group) (_ int, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupRows: Group not found"))
@@ -130,6 +142,8 @@ func (d *Data) GetGroupRows(grp user.Group) (_ int, err error) {
 }
 
 func (d *Data) GetGroupCols(grp user.Group) (_ int, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupCols: Group not found"))
@@ -140,6 +154,8 @@ func (d *Data) GetGroupCols(grp user.Group) (_ int, err error) {
 }
 
 func (d *Data) GetGroupRowColumn(grp user.Group, row, col int) (k key.Key, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupRowColumn: Group not found"))
@@ -155,6 +171,8 @@ func (d *Data) GetGroupRowColumn(grp user.Group, row, col int) (k key.Key, err e
 }
 
 func (d *Data) GetGroupQuestions(grp user.Group) (_ []string, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GetGroupQuestions: Group not found"))
@@ -165,6 +183,8 @@ func (d *Data) GetGroupQuestions(grp user.Group) (_ []string, err error) {
 }
 
 func (d *Data) GroupInsertKeyAt(grp user.Group, k key.Key, row, col int) (err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GroupInsertKeyAt: Group not found"))
@@ -190,6 +210,8 @@ func (d *Data) GroupInsertKeyAt(grp user.Group, k key.Key, row, col int) (err er
 }
 
 func (d *Data) GroupIsAfterGame(grp user.Group) (_ bool, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GroupIsAfterGame: Group not found"))
@@ -200,6 +222,8 @@ func (d *Data) GroupIsAfterGame(grp user.Group) (_ bool, err error) {
 }
 
 func (d *Data) GroupGameEnded(grp user.Group) (_ bool, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		err = GroupNotFoundError(fmt.Errorf("GroupGameEnded: Group not found"))
@@ -212,6 +236,8 @@ func (d *Data) GroupGameEnded(grp user.Group) (_ bool, err error) {
 type GroupExistsError error
 
 func (d *Data) AddGroup(grp user.Group, cfgs []config.Game, ps string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if ok {
 		return GroupExistsError(fmt.Errorf("AddGroup: group already exists"))
@@ -240,6 +266,8 @@ func (d *Data) AddGroup(grp user.Group, cfgs []config.Game, ps string) error {
 type AllGamesDoneError error
 
 func (d *Data) GroupGotoNextGame(grp user.Group) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	g, ok := d.games[grp]
 	if !ok {
 		return GroupNotFoundError(fmt.Errorf("GroupGotoNextGame: Group not found"))

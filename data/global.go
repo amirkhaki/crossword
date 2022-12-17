@@ -14,6 +14,14 @@ func init() {
 	}
 }
 
+func GroupAllGameEnded(grp user.Group) (bool, error) {
+	return d.GroupAllGameEnded(grp)
+}
+
+func GroupEndAllGame(grp user.Group) error {
+	return d.GroupEndAllGame(grp)
+}
+
 func GroupIsPassphraseCorrect(grp user.Group, passphrase string) (bool, error) {
 	return d.GroupIsPassphraseCorrect(grp, passphrase)
 }

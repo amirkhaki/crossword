@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 	"time"
 	"unicode"
 
@@ -55,6 +56,7 @@ func (e endScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = doTick()
 	default:
 		if !e.inited {
+			e.inited = true
 			cmd = doTick()
 		}
 	}
@@ -86,16 +88,33 @@ func (ps passphraseScreen) Init() tea.Cmd {
 	return nil
 }
 
+func (ps passphraseScreen) doResize(msg tea.WindowSizeMsg) passphraseScreen {
+	ps.height = msg.Height
+	ps.width = msg.Width
+	return ps
+}
 func (ps passphraseScreen) checkAnswer() (tea.Model, tea.Cmd) {
 	ok, err := data.GroupIsPassphraseCorrect(ps.usr.Group, ps.passphrase.Value())
 	if err != nil || !ok {
+		log.Println(err)
 		return ps, nil
 	}
-	return endScreen{height: ps.height, width: ps.width}, nil
+	err = data.GroupEndAllGame(ps.usr.Group)
+	if err != nil {
+		// TODO handle error and show it to user
+		log.Println(err)
+		return ps, nil
+	}
+	log.Println("checkAnswer game ended")
+	return endScreen{height: ps.height, width: ps.width}.Update(nil)
 
 }
 
 func (ps passphraseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	ok, err := data.GroupAllGameEnded(ps.usr.Group)
+	if err == nil && ok {
+		return endScreen{height: ps.height, width: ps.width}.Update(nil)
+	}
 	ps.passphrase.Focus()
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -105,9 +124,13 @@ func (ps passphraseScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return ps.checkAnswer()
 		}
-
+	case tea.WindowSizeMsg:
+		ps = ps.doResize(msg)
+		return ps, nil
 	}
-	return ps, nil
+	var cmd tea.Cmd
+	ps.passphrase, cmd = ps.passphrase.Update(msg)
+	return ps, cmd
 }
 
 func (ps passphraseScreen) View() string {
@@ -232,7 +255,8 @@ func (g *game) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return g, tea.Quit
 	}
 	if _, ok := msg.(AllDoneMsg); ok {
-		return passphraseScreen{height: g.height, width: g.width, usr: g.usr}, nil
+		mdl := textinput.New()
+		return passphraseScreen{height: g.height, width: g.width, usr: g.usr, passphrase: mdl}.Update(nil)
 	}
 	if g.Ended() {
 		if g.updateCounter < 1 {
